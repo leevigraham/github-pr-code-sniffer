@@ -223,40 +223,68 @@ $app->get('/events/process', function (Silex\Application $app, Request $request)
     }
 
     // Run PHP Code Sniffer
-    exec("phpcs --report=checkstyle --standard=Symfony2 {$eventFolderPath}/files/* --extensions=php", $output);
-    $report = implode($output);
+    exec("phpcs --standard=Symfony2 {$eventFolderPath}/files/* --extensions=php", $output);
+    $report = implode("\n",$output);
+    file_put_contents($eventFolderPath."/report.txt", $report);
 
-    // Save the output and create XML
-    file_put_contents($eventFolderPath."/checkstyle.xml", $report);
-    $report = new SimpleXMLElement($report);
+    // Create a new comment
+    $comment = array(
+        "body" => '```'.$report.'```',
+    );
 
+    $issueUrl = $app['config.github']['api_url']
+                        . "/repos/"
+                        . $event->repository->full_name
+                        . "/issues/"
+                        . $event->number;
     // Setup Curl
     $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $pullRequestUrl."/comments?access_token=".$app['config.github']['access_token']);
+    curl_setopt($ch, CURLOPT_URL, $issueUrl."/comments?access_token=".$app['config.github']['access_token']);
     curl_setopt($ch, CURLOPT_HEADER, 0);
     curl_setopt($ch, CURLOPT_POST, 1);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($comment));
+    $output = curl_exec($ch);
 
-    // Loop over the files in the report
-    foreach ($report->file as $file) {
 
-        // Make the filename relative
-        $fileName = str_replace($eventFolderPath."/files/", "", (string) $file['name']);
-
-        foreach ($file->error as $error) {
-
-            // Create a new comment
-            $comment = array(
-                "body" => "**".ucfirst((string) $error['severity']).":** ". (string) $error['message'],
-                "commit_id" => $changedFiles[$fileName]->sha,
-                "path" => $changedFiles[$fileName]->filename,
-                "position" => (string) $error['line']
-            );
-
-            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($comment));
-            $output = curl_exec($ch);
-        }
-    }
+    /**
+     * Line by line comments - I have to figure out how to find which line in the diff needs to be commented on.
+     */
+    // // Run PHP Code Sniffer
+    // exec("phpcs --standard=Symfony2 {$eventFolderPath}/files/* --extensions=php", $output);
+    // $report = implode($output);
+    // 
+    // // Save the output and create XML
+    // file_put_contents($eventFolderPath."/checkstyle.xml", $report);
+    // $report = new SimpleXMLElement($report);
+    // 
+    // // Setup Curl
+    // $ch = curl_init();
+    // curl_setopt($ch, CURLOPT_URL, $pullRequestUrl."/comments?access_token=".$app['config.github']['access_token']);
+    // curl_setopt($ch, CURLOPT_HEADER, 0);
+    // curl_setopt($ch, CURLOPT_POST, 1);
+    // curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    // 
+    // // Loop over the files in the report
+    // foreach ($report->file as $file) {
+    // 
+    //     // Make the filename relative
+    //     $fileName = str_replace($eventFolderPath."/files/", "", (string) $file['name']);
+    // 
+    //     foreach ($file->error as $error) {
+    // 
+    //         // Create a new comment
+    //         $comment = array(
+    //             "body" => "**".ucfirst((string) $error['severity']).":** ". (string) $error['message'],
+    //             "commit_id" => $changedFiles[$fileName]->sha,
+    //             "path" => $changedFiles[$fileName]->filename,
+    //             "position" => (string) $error['line']
+    //         );
+    // 
+    //         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($comment));
+    //         $output = curl_exec($ch);
+    //     }
+    // }
 
     curl_close($ch);
 
