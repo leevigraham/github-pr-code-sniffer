@@ -10,8 +10,9 @@ use Symfony\Component\Filesystem\Filesystem;
  */
 $app->before(function (Request $request) use ($app) {
 
-    if(empty($app['config.github']['access_token']) && $request->get('_route') != "authorisation") {
+    if (empty($app['config.github']['access_token']) && $request->get('_route') != "authorisation") {
         $request = $app['url_generator']->generate('authorisation');
+
         return $app->redirect($request);
     }
 
@@ -22,6 +23,7 @@ $app->before(function (Request $request) use ($app) {
  */
 $app->get('/', function (Silex\Application $app, Request $request)  {
     $request = $app['url_generator']->generate('events');
+
     return $app->redirect($request);
 })
 ->bind('dashboard');
@@ -35,7 +37,7 @@ $app->get('/hooks', function (Silex\Application $app, Request $request)  {
     foreach ($app['config.github']['repos'] as $repo) {
 
         $viewData['repos'][$repo] = array();
-        
+
         $repoUrl = $app['config.github']['api_url']
                         ."/repos/"
                         .$repo
@@ -46,7 +48,7 @@ $app->get('/hooks', function (Silex\Application $app, Request $request)  {
         $hooks = json_decode($jsonResponse, true);
 
         foreach ($hooks as $hook) {
-            if(in_array('pull_request', $hook['events'])) {
+            if (in_array('pull_request', $hook['events'])) {
                 $hook['test_url'] = $hook['url'] . "/test?access_token=".$app['config.github']['access_token'];
                 $hook['url'] .= "?access_token=".$app['config.github']['access_token'];
                 $viewData['repos'][$repo]['hooks'][] = $hook;
@@ -89,7 +91,7 @@ $app->post('/hooks/create', function (Silex\Application $app, Request $request) 
 
     $response = json_decode(curl_exec($ch), true);
 
-    if(true == isset($response['id'])) {
+    if (true == isset($response['id'])) {
         $requestData['message'] = "New hook created with ID #" . $response['id'];
     } else {
         $requestData['message'] = $response['message'];
@@ -98,7 +100,8 @@ $app->post('/hooks/create', function (Silex\Application $app, Request $request) 
     curl_close($ch);
 
     $request = $app['url_generator']->generate('hooks', $requestData);
-    return $app->redirect( $request );
+
+    return $app->redirect($request);
 
 })
 ->bind('hooks_create');
@@ -118,7 +121,7 @@ $app->get('/hooks/delete/{id}', function (Silex\Application $app, Request $reque
 
     $response = json_decode(curl_exec($ch), true);
 
-    if(empty($response)) {
+    if (empty($response)) {
         $requestData['message'] = "Hook deleted";
     } else {
         $requestData['message'] = $response['message'];
@@ -127,7 +130,8 @@ $app->get('/hooks/delete/{id}', function (Silex\Application $app, Request $reque
     curl_close($ch);
 
     $request = $app['url_generator']->generate('hooks', $requestData);
-    return $app->redirect( $request );
+
+    return $app->redirect($request);
 
 })
 ->bind('hooks_delete');
@@ -148,7 +152,7 @@ $app->get('/events', function (Silex\Application $app, Request $request) {
         ->depth(1)
         ->in($app['config.event_folder_path']);
 
-    foreach($files as $file) {
+    foreach ($files as $file) {
         $viewData['events'][] = json_decode(file_get_contents($file->getRealpath()), true);
     }
 
@@ -159,12 +163,12 @@ $app->get('/events', function (Silex\Application $app, Request $request) {
 /**
  * Events - Process
  */
-$app->post('/events/process', function (Silex\Application $app, Request $request) {
+$app->get('/events/process', function (Silex\Application $app, Request $request) {
 
-    if(! $event = $request->get('payload')) {
-        echo("No playload!");
-        exit;
-    }
+    // if (! $event = $request->get('payload')) {
+    //     echo("No playload!");
+    //     exit;
+    // }
 
     $fs = new Filesystem();
     $eventFolderPath = $app['config.event_folder_path'] . "/" . time();
@@ -175,13 +179,14 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
         echo "An error occurred while creating your directory";
     }
 
-    // $event = new stdClass();
-    // $event->number = 4;
-    // $event->repository = new stdClass();
-    // $event->repository->full_name = "leevigraham/jenkins-test";
+    $event = new stdClass();
+    $event->number = 1;
+    $event->repository = new stdClass();
+    $event->repository->full_name = "leevigraham/github-pr-code-sniffer";
+
+    // $event = json_decode($event);
 
     file_put_contents($eventFolderPath."/payload.json", $event);
-    $event = json_decode($event);
 
 
     $pullRequestUrl =   $app['config.github']['api_url']
@@ -201,12 +206,12 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
     $pullRequestFilesJson = file_get_contents($pullRequestUrl."/files?access_token=".$app['config.github']['access_token']);
 
     foreach (json_decode($pullRequestFilesJson) as $file) {
-        if($file->status == 'removed') {
+        if ($file->status == 'removed') {
             continue;
         }
 
         $fileContents = file_get_contents($file->raw_url);
-        
+
         try {
             $fs->mkdir(dirname($eventFolderPath . "/files/" . $file->filename));
             file_put_contents($eventFolderPath . "/files/" . $file->filename, $fileContents);
@@ -236,16 +241,16 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
     foreach ($report->file as $file) {
 
         // Make the filename relative
-        $fileName = str_replace($eventFolderPath."/files/", "", (string)$file['name']);
+        $fileName = str_replace($eventFolderPath."/files/", "", (string) $file['name']);
 
         foreach ($file->error as $error) {
 
             // Create a new comment
             $comment = array(
-                "body" => "**".ucfirst((string)$error['severity']).":** ".(string)$error['message'],
+                "body" => "**".ucfirst((string) $error['severity']).":** ". (string) $error['message'],
                 "commit_id" => $changedFiles[$fileName]->sha,
                 "path" => $changedFiles[$fileName]->filename,
-                "position" => (string)$error['line']
+                "position" => (string) $error['line']
             );
 
             curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($comment));
@@ -271,18 +276,18 @@ $app->get('/authorisation', function (Silex\Application $app, Request $request) 
     $viewData = array();
 
     // No client settings
-    if(false == isset($app['config.github']['client_id']) 
+    if (false == isset($app['config.github']['client_id'])
         || false == isset($app['config.github']['client_secret'])
     ) {
 
         $viewData['step'] = 1;
 
     // Is there a code in the query string
-    } elseif($code = $request->get('code')) {
+    } elseif ($code = $request->get('code')) {
 
-        $payLoad = 
-            "client_id=".$app['config.github']['client_id'] . 
-            "&client_secret=".$app['config.github']['client_secret'] . 
+        $payLoad =
+            "client_id=".$app['config.github']['client_id'] .
+            "&client_secret=".$app['config.github']['client_secret'] .
             "&code=".$code;
 
         $ch = curl_init();
@@ -296,10 +301,11 @@ $app->get('/authorisation', function (Silex\Application $app, Request $request) 
         curl_close($ch);
 
         $response = json_decode($response, true);
-        
-        if(isset($response['access_token'])) {
+
+        if (isset($response['access_token'])) {
             $url = $app['url_generator']->generate('authorisation', $response);
-            return $app->redirect( $url );
+
+            return $app->redirect($url);
         }
 
         $viewData['step'] = 2;
@@ -309,7 +315,7 @@ $app->get('/authorisation', function (Silex\Application $app, Request $request) 
         $viewData['response'] = $response;
 
     // Is there a token in the query string or is there a token
-    } elseif(false == empty($app['config.github']['access_token']) || $request->get('access_token')) {
+    } elseif (false == empty($app['config.github']['access_token']) || $request->get('access_token')) {
 
         $viewData['step'] = 3;
         $viewData['access_token'] = $request->get('access_token') ?: $app['config.github']['access_token'];
@@ -323,9 +329,8 @@ $app->get('/authorisation', function (Silex\Application $app, Request $request) 
                                 ."&scope=public_repo,repo,delete_repo";
 
     }
-    
+
     return $app['twig']->render('authorisation/index.html.twig', $viewData);
-    
-    // (true == isset($app['config.github']['access_token'])) {
+
 })
 ->bind('authorisation');
