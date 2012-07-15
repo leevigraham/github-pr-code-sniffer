@@ -14,7 +14,7 @@
 
 <form class="well form-inline" action="{{ app.url_generator.generate('hooks_create') }}" method="post">
     <p>Create a new pull request hook</p>
-    <select class="span3" name="hook[repo]">
+    <select style="width:auto" name="hook[repo]">
         {% for reponame, repo in repos %}
         <option value="{{ reponame }}">{{ reponame }}</option>
         {% endfor %}
