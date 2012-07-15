@@ -89,8 +89,8 @@ $app->post('/hooks/create', function (Silex\Application $app, Request $request) 
 
     $response = json_decode(curl_exec($ch), true);
 
-    if(true == isset($response->id)) {
-        $requestData['message'] = "New hook created with ID #" . $response->id;
+    if(true == isset($response['id'])) {
+        $requestData['message'] = "New hook created with ID #" . $response['id'];
     } else {
         $requestData['message'] = $response['message'];
         $requestData['error'] = true;
@@ -296,7 +296,7 @@ $app->get('/authorisation', function (Silex\Application $app, Request $request) 
         $viewData['response'] = $response;
 
     // Is there a token in the query string or is there a token
-    } elseif(true == isset($app['config.github']['access_token']) || $request->get('access_token')) {
+    } elseif(false == empty($app['config.github']['access_token']) || $request->get('access_token')) {
 
         $viewData['step'] = 3;
         $viewData['access_token'] = $request->get('access_token') ?: $app['config.github']['access_token'];
