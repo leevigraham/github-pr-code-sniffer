@@ -171,7 +171,8 @@ $app->get('/events/process', function (Silex\Application $app, Request $request)
     // }
 
     $fs = new Filesystem();
-    $eventFolderPath = $app['config.event_folder_path'] . "/" . time();
+    $eventTime =  time();
+    $eventFolderPath = $app['config.event_folder_path'] . "/" . $eventTime;
 
     try {
         $fs->mkdir($eventFolderPath);
@@ -224,7 +225,8 @@ $app->get('/events/process', function (Silex\Application $app, Request $request)
 
     // Run PHP Code Sniffer
     exec("phpcs --standard=Symfony2 {$eventFolderPath}/files/* --extensions=php", $output);
-    $report = implode("\n",$output);
+    $report = implode("\n", $output);
+    $report = preg_replace("/FILE:(.*?)".$eventTime."\/files\//", "FILE: ", $report);
     file_put_contents($eventFolderPath."/report.txt", $report);
 
     // Create a new comment
