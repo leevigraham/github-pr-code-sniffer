@@ -191,7 +191,12 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
                         . $event->number;
 
     $changedFiles = array();
-    mkdir($eventFolderPath . "/files", 0777, true);
+
+    try {
+        $fs->mkdir($eventFolderPath . "/files");
+    } catch (IOException $e) {
+        echo "An error occurred while creating your directory";
+    }
 
     $pullRequestFilesJson = file_get_contents($pullRequestUrl."/files?access_token=".$app['config.github']['access_token']);
 
@@ -199,8 +204,16 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
         if($file->status == 'removed') {
             continue;
         }
+
         $fileContents = file_get_contents($file->raw_url);
-        file_put_contents($eventFolderPath . "/files/" . $file->filename, $fileContents);
+        
+        try {
+            $fs->mkdir(dirname($eventFolderPath . "/files/" . $file->filename));
+            file_put_contents($eventFolderPath . "/files/" . $file->filename, $fileContents);
+        } catch (IOException $e) {
+            echo "An error occurred while creating your directory";
+        }
+
         $changedFiles[$file->filename] = $file;
     }
 
