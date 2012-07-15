@@ -253,7 +253,7 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
      * Line by line comments - I have to figure out how to find which line in the diff needs to be commented on.
      */
     // // Run PHP Code Sniffer
-    // exec("phpcs --standard=Symfony2 {$eventFolderPath}/files/* --extensions=php", $output);
+    // exec("phpcs --standard=Symfony2 --report=checkstyle  {$eventFolderPath}/files --extensions=php", $output);
     // $report = implode($output);
     // 
     // // Save the output and create XML
