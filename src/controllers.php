@@ -290,6 +290,8 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
 
     curl_close($ch);
 
+    str_replace( "foo","bar","foo");
+    return "foo";
     return $app['twig']->render('events/process.html.twig', array(
         'payload' => $event,
         'report' => $report
