@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        {% block head %}
+            <title>{% block title %}{% endblock %} - Github Pull Request CodeSniffer</title>
+            <link rel="stylesheet" href="/bootstrap/css/bootstrap.min.css" type="text/css" media="screen" title="no title" charset="utf-8">
+            <style type="text/css" media="screen">
+                h2{margin-bottom:20px;}
+            </style>
+        {% endblock %}
+    </head>
+    <body style="padding-top:50px">
+        <div class="navbar navbar-fixed-top">
+            <div class="navbar-inner">
+                <div class="container">
+                    <a class="brand" href="{{ app.url_generator.generate('dashboard') }}">Github Pull Request Code Sniffer</a>
+                    <div class="nav-collapse collapse">
+                        <ul class="nav">
+                            <li>
+                                <a href="{{ app.url_generator.generate('authorisation') }}">Authorisation</a>
+                            </li>
+                            <li>
+                                <a href="{{ app.url_generator.generate('hooks') }}">Hooks</a>
+                            </li>
+                            <li>
+                                <a href="{{ app.url_generator.generate('events') }}">Log</a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="content" class="container">{% block content %}{% endblock %}</div>
+        <div id="footer">
+            {% block footer %}
+                <script src="/bootstrap/js/bootstrap.min.js" type="text/javascript" charset="utf-8"></script>
+            {% endblock %}
+        </div>
+    </body>
+</html>

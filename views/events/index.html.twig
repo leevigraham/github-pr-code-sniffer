@@ -1,0 +1,44 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Log{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <h1>Events Log <small>/ Processed pull request events</small></h1>
+</div>
+<p class="alert">State, commits, changed files, deleted files and comments refelect the pull request when it was made, not the current state.</p>
+<table class='table table-bordered table-striped'>
+    <thead>
+        <tr>
+            <th>Created At</th>
+            <th>No</th>
+            <th>Title</th>
+            <th>Action</th>
+            <th>Repo</th>
+            <th>State</th>
+            <th>Commits</th>
+            <th>Changed Files</th>
+            <th>Deleted Files</th>
+            <th>Comments</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for event in events %}
+        <tr>
+            <td>{{ event['pull_request']['created_at'] }}</td>
+            <td style="text-align:right"><a href="{{ event['pull_request']['_links']['html']['href'] }}">{{ event['number'] }}</a></td>
+            <td>{{ event['pull_request']['title'] }}</td>
+            <td>{{ event['action'] }}</td>
+            <td><a href="{{ event['pull_request']['base']['repo']['html_url'] }}">{{ event['pull_request']['base']['repo']['full_name'] }}</a></td>
+            <td><span class="label label-{{ event['pull_request']['state'] }}">{{ event['pull_request']['state'] }}</span></td>
+            <td style="text-align:right">{{ event['pull_request']['commits'] }}</td>
+            <td style="text-align:right">{{ event['pull_request']['changed_files'] }}</td>
+            <td style="text-align:right">{{ event['pull_request']['deletions'] }}</td>
+            <td style="text-align:right"><a href="{{ event['pull_request']['_links']['comments']['href'] }}">{{ event['pull_request']['comments'] }}</a></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}

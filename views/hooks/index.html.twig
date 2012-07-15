@@ -1,0 +1,62 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Hooks{% endblock %}
+
+{% block content %}
+
+{% if app.request.get('message') %}
+<div class="alert alert-{% if app.request.get('error') %}error{% else %}success{% endif %}">{{ app.request.get('message') }}</div>
+{% endif %}
+
+<div class="page-header">
+    <h1>Hooks</h1>
+</div>
+
+<form class="well form-inline" action="{{ app.url_generator.generate('hooks_create') }}" method="post">
+    <p>Create a new pull request hook</p>
+    <select class="span3" name="hook[repo]">
+        {% for reponame, repo in repos %}
+        <option value="{{ reponame }}">{{ reponame }}</option>
+        {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-primary">Create Hook</button>
+</form>
+
+<table class='table table-bordered table-striped'>
+    <thead>
+        <tr>
+            <th></th>
+            <th>Id</th>
+            <th>Name</th>
+            <th>Repo</th>
+            <th>Events</th>
+            <th>Created At</th>
+            <th>Callback URL</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+{% for reponame, repo in repos %}
+    {% if repo['hooks'] is defined %}
+        {% for hook in repo['hooks'] %}
+        <tr>
+            <td>
+                <span class="label label-{% if hook['active'] %}success{% else %}warning{% endif %}">
+                    {% if hook['active'] %}Active{% else %}Inactive{% endif %}
+                </span>
+            </td>
+            <td><a href="{{ hook['url'] }}">{{ hook['id'] }}</a></td>
+            <td>{{ hook['name'] }}</td>
+            <td>{{ reponame }}</td>
+            <td>{{ hook['events']|join(", ") }}</td>
+            <td>{{ hook['created_at'] }}</td>
+            <td>{{ hook['config']['url'] }}</td>
+            <td><a href="{{ app.url_generator.generate('hooks_delete', {"id":hook['id'], "repo": reponame}) }}"><i class="icon icon-remove"></i></a></td>
+        </tr>
+        {% endfor %}
+    {% endif %}
+{% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}

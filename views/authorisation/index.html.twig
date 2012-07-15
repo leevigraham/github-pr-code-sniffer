@@ -1,0 +1,34 @@
+{% extends "layout.html.twig" %}
+
+{% block title %}Authorisation{% endblock %}
+
+{% block content %}
+
+
+{% if step == 1 %}
+    <div class="page-header">
+        <h1>Setup <small>/ Register a new application</small></h1>
+    </div>
+    <p>All developers need to <a href="https://github.com/settings/applications/new">register their application</a> before getting started. A registered OAuth application is assigned a unique Client ID and Client Secret. The Client Secret should not be shared.</p>
+    <p><strong>Callback URL:</strong> <a href="{{ app['config.github']['callback_url'] }}">{{ app['config.github']['callback_url'] }}</a></p>
+{% endif %}
+
+{% if step == 2 %}
+    <div class="page-header">
+        <h1>Setup <small>/ Authorise Application</small></h1>
+    </div>
+    {% if response is defined %}
+    <p class="alert alert-error"><strong>Error:</strong> {{ response['error'] }}. <a href="{{ auth_url }}" class="btn">Authorise Application</a></p>
+    {% else %}
+    <a href="{{ auth_url }}" class="btn">Authorise Application</a>
+    {% endif %}
+{% endif %}
+
+{% if step == 3 %}
+    <div class="page-header">
+        <h1>Setup <small>/ Done</small></h1>
+    </div>
+    <p>Here's your Access Token, <strong>add it to your app config</strong>: <code>{{ access_token }}</code> then <a href="{{ app.url_generator.generate('hooks') }}"> register repo webhooks</a>.</p>
+{% endif %}
+
+{% endblock %}
