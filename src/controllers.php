@@ -163,12 +163,12 @@ $app->get('/events', function (Silex\Application $app, Request $request) {
 /**
  * Events - Process
  */
-$app->get('/events/process', function (Silex\Application $app, Request $request) {
+$app->post('/events/process', function (Silex\Application $app, Request $request) {
 
-    // if (! $event = $request->get('payload')) {
-    //     echo("No playload!");
-    //     exit;
-    // }
+    if (! $event = $request->get('payload')) {
+        echo("No playload!");
+        exit;
+    }
 
     $fs = new Filesystem();
     $eventTime =  time();
@@ -180,12 +180,12 @@ $app->get('/events/process', function (Silex\Application $app, Request $request)
         echo "An error occurred while creating your directory";
     }
 
-    $event = new stdClass();
-    $event->number = 1;
-    $event->repository = new stdClass();
-    $event->repository->full_name = "leevigraham/github-pr-code-sniffer";
+    // $event = new stdClass();
+    // $event->number = 1;
+    // $event->repository = new stdClass();
+    // $event->repository->full_name = "leevigraham/github-pr-code-sniffer";
 
-    // $event = json_decode($event);
+    $event = json_decode($event);
 
     file_put_contents($eventFolderPath."/payload.json", $event);
 
