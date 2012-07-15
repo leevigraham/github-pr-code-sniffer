@@ -224,7 +224,7 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
     }
 
     // Run PHP Code Sniffer
-    exec("phpcs --standard=Symfony2 {$eventFolderPath}/files/* --extensions=php", $output);
+    exec("phpcs --standard=Symfony2 --extensions=php {$eventFolderPath}/files/", $output);
     $report = implode("\n", $output);
     $report = preg_replace("/FILE:(.*?)".$eventTime."\/files\//", "FILE: ", $report);
     file_put_contents($eventFolderPath."/report.txt", $report);
