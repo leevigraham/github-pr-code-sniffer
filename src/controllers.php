@@ -205,7 +205,7 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
     }
 
     // Run PHP Code Sniffer
-    exec("phpcs --report=checkstyle --standard=Symfony2 {$eventFolderPath}/files/*", $output);
+    exec("phpcs --report=checkstyle --standard=Symfony2 {$eventFolderPath}/files/* --extensions=php", $output);
     $report = implode($output);
 
     // Save the output and create XML
