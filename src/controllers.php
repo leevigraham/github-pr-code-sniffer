@@ -403,7 +403,7 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
     $comment = array(
         "body" => $summaryReport,
     );
-    
+
     $issueUrl = $app['config.github']['api_url']
                         . "/repos/"
                         . $event->repository->full_name
@@ -413,7 +413,7 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
     curl_setopt($ch, CURLOPT_URL, $issueUrl."/comments?access_token=".$app['config.github']['access_token']);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($comment));
     $output = curl_exec($ch);
-    
+
     curl_close($ch);
 
     // var_dump($comments);
