@@ -1,0 +1,30 @@
+{% if totals['error'] or totals['warning'] %}
+:rage: Looks like there were some errors in your pull request:
+<table class="table table-condensed">
+    <thead>
+        <tr>
+            <th>Filename</th>
+            <th>Errors</th>
+            <th>Warnings</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for filename, errors in files %}
+        <tr>
+            <th>{{ filename }}</th>
+            <td>{{ errors['error'] }}</td>
+            <td>{{ errors['warning'] }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+    <tfoot>
+        <tr>
+            <th>Totals</th>
+            <td>{{ totals['error'] }}</td>
+            <td>{{ totals['warning'] }}</td>
+        </tr>
+    </tfoot>
+</table>
+{% else %}
+:thumbsup:
+{% endif %}

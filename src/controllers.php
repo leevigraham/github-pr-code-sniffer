@@ -173,6 +173,7 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
     $fs = new Filesystem();
     $eventTime =  time();
     $eventFolderPath = $app['config.event_folder_path'] . "/" . $eventTime;
+    // $eventFolderPath = $app['config.event_folder_path'] . "/1342404129";
 
     try {
         $fs->mkdir($eventFolderPath);
@@ -181,11 +182,13 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
     }
 
     // $event = new stdClass();
-    // $event->number = 1;
+    // $event->number = 3;
     // $event->repository = new stdClass();
     // $event->repository->full_name = "leevigraham/github-pr-code-sniffer";
+    // $event->pull_request->diff_url = "https://github.com/{$event->repository->full_name}/pull/{$event->number}.diff";
 
     $event = json_decode($event);
+
     $diffFile = file_get_contents($event->pull_request->diff_url);
 
     file_put_contents($eventFolderPath."/payload.json", $event);
@@ -321,51 +324,27 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
         $changedFiles[$file->filename] = $file;
     }
 
-    // Run PHP Code Sniffer
-    // exec("phpcs --standard=Symfony2 --extensions=php {$eventFolderPath}/files/", $output);
-    // $report = implode("\n", $output);
-    // $report = preg_replace("/FILE:(.*?)".$eventTime."\/files\//", "FILE: ", $report);
-    // file_put_contents($eventFolderPath."/report.txt", $report);
-    // 
-    // // Create a new comment
-    // $comment = array(
-    //     "body" => '```'.$report.'```',
-    // );
-    // 
-    // $issueUrl = $app['config.github']['api_url']
-    //                     . "/repos/"
-    //                     . $event->repository->full_name
-    //                     . "/issues/"
-    //                     . $event->number;
-    // // Setup Curl
-    // $ch = curl_init();
-    // curl_setopt($ch, CURLOPT_URL, $issueUrl."/comments?access_token=".$app['config.github']['access_token']);
-    // curl_setopt($ch, CURLOPT_HEADER, 0);
-    // curl_setopt($ch, CURLOPT_POST, 1);
-    // curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-    // curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($comment));
-    // $output = curl_exec($ch);
-
-    /**
-     * Line by line comments - I have to figure out how to find which line in the diff needs to be commented on.
-     */
-    // Run PHP Code Sniffer
-    exec("phpcs --standard=Symfony2 --report=checkstyle --extensions=php {$eventFolderPath}/files", $output);
+    exec("phpcs --standard=Symfony2 --report-checkstyle --extensions=php {$eventFolderPath}/files", $output);
     $report = implode($output);
 
     // Save the output and create XML
-    file_put_contents($eventFolderPath."/checkstyle.xml", $report);
+    file_put_contents($eventFolderPath."/phpcs-checkstyle.xml", $report);
     $report = new SimpleXMLElement($report);
 
     // Loop over the files in the report
     // var_dump($report);
 
     $comments = array();
+    $errors = array(
+        'files' => array(),
+        'totals' => array('error' => 0, 'warning' => 0)
+    );
 
     // Loop over the checkstyle files
     foreach ($report->file as $fileReport) {
         // Get the file name
         $fileName = str_replace($eventFolderPath."/files/", "", (string) $fileReport['name']);
+        $errors['files'][$fileName] = array('error' => 0, 'warning' => 0);
         // Loop over the diff results
         foreach($diffResult as $diffReport) {
 
@@ -383,13 +362,16 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
                         // Loop over addedLines
                         foreach ($diffReportChunk['addedLines'] as $addedLine) {
                             if($checkstyleReportError['line'] == $addedLine['fileLineIndex']) {
+                                $severity = (string) $checkstyleReportError['severity'];
                                 $comments[] = array(
-                                    "body" => "**".ucfirst((string) $checkstyleReportError['severity']).":** ". (string) $checkstyleReportError['message'],
+                                    "body" => "**".ucfirst($severity ).":** ". (string) $checkstyleReportError['message'],
                                     "commit_id" => $changedFiles[$fileName]->sha,
                                     "path" => $changedFiles[$fileName]->filename,
-                                    "position" => $addedLine['position'],
-                                    "line" => $addedLine['fileLineIndex']
+                                    "position" => $addedLine['position']
                                 );
+
+                                $errors['files'][$fileName][$severity]++;
+                                $errors['totals'][$severity]++;
                             }
                         }
                     }
@@ -397,7 +379,7 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
             }
         }
     }
-    
+
     // Setup Curl
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $pullRequestUrl."/comments?access_token=".$app['config.github']['access_token']);
@@ -410,6 +392,28 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
         $output = curl_exec($ch);
     }
 
+    $issueUrl = $app['config.github']['api_url']
+                        . "/repos/"
+                        . $event->repository->full_name
+                        . "/issues/"
+                        . $event->number;
+
+    $summaryReport = $app['twig']->render('events/phpcs-summary-report.html.twig', $errors);
+
+    $comment = array(
+        "body" => $summaryReport,
+    );
+    
+    $issueUrl = $app['config.github']['api_url']
+                        . "/repos/"
+                        . $event->repository->full_name
+                        . "/issues/"
+                        . $event->number;
+
+    curl_setopt($ch, CURLOPT_URL, $issueUrl."/comments?access_token=".$app['config.github']['access_token']);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($comment));
+    $output = curl_exec($ch);
+    
     curl_close($ch);
  
     // var_dump($comments);
