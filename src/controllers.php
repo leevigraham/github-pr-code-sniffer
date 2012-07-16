@@ -165,7 +165,7 @@ $app->get('/events', function (Silex\Application $app, Request $request) {
  */
 $app->post('/events/process', function (Silex\Application $app, Request $request) {
 
-    if (! $eventRaw = $request->get('payload')) {
+    if (! $eventRaw = $request->request->get('payload')) {
         echo("No playload!");
         exit;
     }
@@ -174,9 +174,12 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
     // $eventRaw = false;
     // $event = array();
     // $event['number'] = 3;
-    // $event['repository'] = array();
     // $event['repository']['full_name'] = "leevigraham/github-pr-code-sniffer";
     // $event['pull_request']['diff_url'] = "https://github.com/{$event['repository']['full_name']}/pull/{$event['number']}.diff";
+
+    if(false == isset($event['pull_request'])) {
+        exit('Bad Payload');
+    }
 
     $diffFile = file_get_contents($event['pull_request']['diff_url']);
 
