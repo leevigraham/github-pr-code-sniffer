@@ -209,7 +209,7 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
     foreach (explode("\n", $diffFile) as $lineNum => $line) {
         $lineNum = $lineNum+1;
         foreach ($patterns as $patternKey => $pattern) {
-            if (preg_match($pattern, $line, $matches)){
+            if (preg_match($pattern, $line, $matches)) {
                 switch ($patternKey) {
                     case 'diff':
                         unset($position);
@@ -386,7 +386,7 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
     curl_setopt($ch, CURLOPT_HEADER, 0);
     curl_setopt($ch, CURLOPT_POST, 1);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-    
+
     foreach ($comments as $comment) {
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($comment));
         $output = curl_exec($ch);
