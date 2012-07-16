@@ -169,11 +169,11 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
         echo("No playload!");
         exit;
     }
+    $event = json_decode($event, true);
 
     $fs = new Filesystem();
     $eventTime =  time();
     $eventFolderPath = $app['config.event_folder_path'] . "/" . $eventTime;
-    // $eventFolderPath = $app['config.event_folder_path'] . "/1342404129";
 
     try {
         $fs->mkdir($eventFolderPath);
@@ -181,15 +181,14 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
         echo "An error occurred while creating your directory";
     }
 
-    // $event = new stdClass();
-    // $event->number = 3;
-    // $event->repository = new stdClass();
-    // $event->repository->full_name = "leevigraham/github-pr-code-sniffer";
-    // $event->pull_request->diff_url = "https://github.com/{$event->repository->full_name}/pull/{$event->number}.diff";
 
-    $event = json_decode($event);
+    // $event = array();
+    // $event['number'] = 3;
+    // $event['repository'] = new stdClass();
+    // $event['repository']['full_name'] = "leevigraham/github-pr-code-sniffer";
+    // $event['pull_request']['diff_url'] = "https://github.com/{$event['repository']['full_name']}/pull/{$event['number']}.diff";
 
-    $diffFile = file_get_contents($event->pull_request->diff_url);
+    $diffFile = file_get_contents($event['pull_request']['diff_url']);
 
     file_put_contents($eventFolderPath."/payload.json", $event);
     file_put_contents($eventFolderPath."/diff.txt", $diffFile);
@@ -291,9 +290,9 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
 
     $pullRequestUrl =   $app['config.github']['api_url']
                         . "/repos/"
-                        . $event->repository->full_name
+                        . $event['repository']['full_name']
                         . "/pulls/"
-                        . $event->number;
+                        . $event['number'];
 
     $changedFiles = array();
 
@@ -394,21 +393,15 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
 
     $issueUrl = $app['config.github']['api_url']
                         . "/repos/"
-                        . $event->repository->full_name
+                        . $event['repository']['full_name']
                         . "/issues/"
-                        . $event->number;
+                        . $event['number'];
 
     $summaryReport = $app['twig']->render('events/phpcs-summary-report.html.twig', $errors);
 
     $comment = array(
         "body" => $summaryReport,
     );
-
-    $issueUrl = $app['config.github']['api_url']
-                        . "/repos/"
-                        . $event->repository->full_name
-                        . "/issues/"
-                        . $event->number;
 
     curl_setopt($ch, CURLOPT_URL, $issueUrl."/comments?access_token=".$app['config.github']['access_token']);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($comment));
