@@ -209,6 +209,7 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
             if(preg_match($pattern, $line, $matches)){
                 switch ($patternKey) {
                     case 'diff':
+                        unset($position);
                         $currentDiff = $line;
                         // var_dump($currentDiff);
                         // exit;
@@ -232,6 +233,9 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
                         );
                         break;
                     case 'chunk':
+                        if(false == isset($position)) {
+                            $position = 0;
+                        }
                         $currentChunk = $lineNum;
                         $addedSourceLine = (int) $matches[4];
                         $removedSourceLine = (int) $matches[1];
@@ -240,24 +244,30 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
                             'changedLinesCount' => (int) $matches[6],
                             'removedLinesStart' => (int) $matches[1],
                             'removedLinesCount' => (int) $matches[3],
+                            'position' => $position,
                             'diffString' => $line
                         );
+                        $position++;
                         break;
                     case 'addedLines':
                         $diffResult[$currentDiff]['chunks'][$currentChunk][$patternKey][] = array(
                             'fileLineIndex' => $addedSourceLine,
                             'diffLineIndex' => $lineNum,
+                            'position' => $position,
                             'diffString' => $line,
                         );
                         $addedSourceLine++;
+                        $position++;
                         break;
                     case 'removedLines':
                         $diffResult[$currentDiff]['chunks'][$currentChunk][$patternKey][] = array(
                             'fileLineIndex' => $removedSourceLine,
                             'diffLineIndex' => $lineNum,
+                            'position' => $position,
                             'diffString' => $line,
                         );
                         $removedSourceLine++;
+                        $position++;
                         break;
                     case 'unchangedLines':
                         // $diffResult[$currentDiff]['chunks'][$currentChunk][$patternKey][] = array(
@@ -266,12 +276,15 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
                         //                         );
                         $addedSourceLine++;
                         $removedSourceLine++;
+                        $position++;
                         break;
                 }
                 continue(2);
             }
         }
     }
+    
+    file_put_contents($eventFolderPath."/parsedDiff.json", json_encode($diffResult));
 
     $pullRequestUrl =   $app['config.github']['api_url']
                         . "/repos/"
@@ -374,7 +387,8 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
                                     "body" => "**".ucfirst((string) $checkstyleReportError['severity']).":** ". (string) $checkstyleReportError['message'],
                                     "commit_id" => $changedFiles[$fileName]->sha,
                                     "path" => $changedFiles[$fileName]->filename,
-                                    "position" => $addedLine['diffLineIndex']
+                                    "position" => $addedLine['position'],
+                                    "line" => $addedLine['fileLineIndex']
                                 );
                             }
                         }
