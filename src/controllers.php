@@ -180,7 +180,7 @@ $app->match('/events/process', function (Silex\Application $app, Request $reques
     // $event['repository']['full_name'] = "leevigraham/github-pr-code-sniffer";
     // $event['pull_request']['diff_url'] = "https://github.com/{$event['repository']['full_name']}/pull/{$event['number']}.diff";
 
-    if(false == isset($event['pull_request'])) {
+    if (false == isset($event['pull_request'])) {
         exit('Bad Payload');
     }
 
