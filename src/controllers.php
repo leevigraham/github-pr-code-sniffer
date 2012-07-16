@@ -165,11 +165,20 @@ $app->get('/events', function (Silex\Application $app, Request $request) {
  */
 $app->post('/events/process', function (Silex\Application $app, Request $request) {
 
-    if (! $event = $request->get('payload')) {
+    if (! $eventRaw = $request->get('payload')) {
         echo("No playload!");
         exit;
     }
-    $event = json_decode($event, true);
+    $event = json_decode($eventRaw, true);
+
+    // $eventRaw = false;
+    // $event = array();
+    // $event['number'] = 3;
+    // $event['repository'] = array();
+    // $event['repository']['full_name'] = "leevigraham/github-pr-code-sniffer";
+    // $event['pull_request']['diff_url'] = "https://github.com/{$event['repository']['full_name']}/pull/{$event['number']}.diff";
+
+    $diffFile = file_get_contents($event['pull_request']['diff_url']);
 
     $fs = new Filesystem();
     $eventTime =  time();
@@ -181,16 +190,7 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
         echo "An error occurred while creating your directory";
     }
 
-
-    // $event = array();
-    // $event['number'] = 3;
-    // $event['repository'] = new stdClass();
-    // $event['repository']['full_name'] = "leevigraham/github-pr-code-sniffer";
-    // $event['pull_request']['diff_url'] = "https://github.com/{$event['repository']['full_name']}/pull/{$event['number']}.diff";
-
-    $diffFile = file_get_contents($event['pull_request']['diff_url']);
-
-    file_put_contents($eventFolderPath."/payload.json", $event);
+    file_put_contents($eventFolderPath."/payload.json", $eventRaw);
     file_put_contents($eventFolderPath."/diff.txt", $diffFile);
 
     $patterns = array(
