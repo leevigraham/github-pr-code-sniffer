@@ -186,9 +186,92 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
     // $event->repository->full_name = "leevigraham/github-pr-code-sniffer";
 
     $event = json_decode($event);
+    $diffFile = file_get_contents($event->pull_request->diff_url);
 
     file_put_contents($eventFolderPath."/payload.json", $event);
+    file_put_contents($eventFolderPath."/diff.txt", $diffFile);
+    
+    $patterns = array(
+        'diff' => "/^diff/",
+        'originalFile' => "/^--- a?\/(.*)/",
+        'newFile' => "/^\+\+\+ b?\/(.*)/",
+        'chunk' => "/^@@ -(\d+)(,(\d+))? \+(\d+)(,(\d+))? @@/",
+        'addedLines' => "/^\+(.*)/",
+        'removedLines' => "/^-(.*)/",
+        'unchangedLines' => "/^ (.*)/",
+    );
 
+    $diffResult = array();
+
+    foreach (explode("\n", $diffFile) as $lineNum => $line) {
+        $lineNum = $lineNum+1;
+        foreach ($patterns as $patternKey => $pattern) {
+            if(preg_match($pattern, $line, $matches)){
+                switch ($patternKey) {
+                    case 'diff':
+                        $currentDiff = $line;
+                        // var_dump($currentDiff);
+                        // exit;
+                        $diffResult[$currentDiff][$patternKey] = array(
+                            'diffLineIndex' => $lineNum,
+                            "diffString" => $line,
+                        );
+                        break;
+                    case 'originalFile':
+                        $diffResult[$currentDiff][$patternKey] = array(
+                            'diffLineIndex' => $lineNum,
+                            "diffString" => $line,
+                            'fileName' => $matches[1]
+                        );
+                        break;
+                    case 'newFile':
+                        $diffResult[$currentDiff][$patternKey] = array(
+                            'diffLineIndex' => $lineNum,
+                            "diffString" => $line,
+                            'fileName' => $matches[1]
+                        );
+                        break;
+                    case 'chunk':
+                        $currentChunk = $lineNum;
+                        $addedSourceLine = (int) $matches[4];
+                        $removedSourceLine = (int) $matches[1];
+                        $diffResult[$currentDiff]['chunks'][$currentChunk] = array(
+                            'changedLinesStart' => (int) $matches[4],
+                            'changedLinesCount' => (int) $matches[6],
+                            'removedLinesStart' => (int) $matches[1],
+                            'removedLinesCount' => (int) $matches[3],
+                            'diffString' => $line
+                        );
+                        break;
+                    case 'addedLines':
+                        $diffResult[$currentDiff]['chunks'][$currentChunk][$patternKey][] = array(
+                            'fileLineIndex' => $addedSourceLine,
+                            'diffLineIndex' => $lineNum,
+                            'diffString' => $line,
+                        );
+                        $addedSourceLine++;
+                        break;
+                    case 'removedLines':
+                        $diffResult[$currentDiff]['chunks'][$currentChunk][$patternKey][] = array(
+                            'fileLineIndex' => $removedSourceLine,
+                            'diffLineIndex' => $lineNum,
+                            'diffString' => $line,
+                        );
+                        $removedSourceLine++;
+                        break;
+                    case 'unchangedLines':
+                        // $diffResult[$currentDiff]['chunks'][$currentChunk][$patternKey][] = array(
+                        //                             'diffString' => $line,
+                        //                             'diffLineIndex' => $lineNum
+                        //                         );
+                        $addedSourceLine++;
+                        $removedSourceLine++;
+                        break;
+                }
+                continue(2);
+            }
+        }
+    }
 
     $pullRequestUrl =   $app['config.github']['api_url']
                         . "/repos/"
@@ -206,13 +289,15 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
 
     $pullRequestFilesJson = file_get_contents($pullRequestUrl."/files?access_token=".$app['config.github']['access_token']);
 
+    file_put_contents($eventFolderPath.'/pull_request_files.json', $pullRequestFilesJson);
+
     foreach (json_decode($pullRequestFilesJson) as $file) {
         if ($file->status == 'removed') {
             continue;
         }
 
         $fileContents = file_get_contents($file->raw_url);
-
+        
         try {
             $fs->mkdir(dirname($eventFolderPath . "/files/" . $file->filename));
             file_put_contents($eventFolderPath . "/files/" . $file->filename, $fileContents);
@@ -224,75 +309,103 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
     }
 
     // Run PHP Code Sniffer
-    exec("phpcs --standard=Symfony2 --extensions=php {$eventFolderPath}/files/", $output);
-    $report = implode("\n", $output);
-    $report = preg_replace("/FILE:(.*?)".$eventTime."\/files\//", "FILE: ", $report);
-    file_put_contents($eventFolderPath."/report.txt", $report);
-
-    // Create a new comment
-    $comment = array(
-        "body" => '```'.$report.'```',
-    );
-
-    $issueUrl = $app['config.github']['api_url']
-                        . "/repos/"
-                        . $event->repository->full_name
-                        . "/issues/"
-                        . $event->number;
-    // Setup Curl
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $issueUrl."/comments?access_token=".$app['config.github']['access_token']);
-    curl_setopt($ch, CURLOPT_HEADER, 0);
-    curl_setopt($ch, CURLOPT_POST, 1);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($comment));
-    $output = curl_exec($ch);
-
+    // exec("phpcs --standard=Symfony2 --extensions=php {$eventFolderPath}/files/", $output);
+    // $report = implode("\n", $output);
+    // $report = preg_replace("/FILE:(.*?)".$eventTime."\/files\//", "FILE: ", $report);
+    // file_put_contents($eventFolderPath."/report.txt", $report);
+    // 
+    // // Create a new comment
+    // $comment = array(
+    //     "body" => '```'.$report.'```',
+    // );
+    // 
+    // $issueUrl = $app['config.github']['api_url']
+    //                     . "/repos/"
+    //                     . $event->repository->full_name
+    //                     . "/issues/"
+    //                     . $event->number;
+    // // Setup Curl
+    // $ch = curl_init();
+    // curl_setopt($ch, CURLOPT_URL, $issueUrl."/comments?access_token=".$app['config.github']['access_token']);
+    // curl_setopt($ch, CURLOPT_HEADER, 0);
+    // curl_setopt($ch, CURLOPT_POST, 1);
+    // curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    // curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($comment));
+    // $output = curl_exec($ch);
 
     /**
      * Line by line comments - I have to figure out how to find which line in the diff needs to be commented on.
      */
-    // // Run PHP Code Sniffer
-    // exec("phpcs --standard=Symfony2 --report=checkstyle  {$eventFolderPath}/files --extensions=php", $output);
-    // $report = implode($output);
-    // 
-    // // Save the output and create XML
-    // file_put_contents($eventFolderPath."/checkstyle.xml", $report);
-    // $report = new SimpleXMLElement($report);
-    // 
-    // // Setup Curl
-    // $ch = curl_init();
-    // curl_setopt($ch, CURLOPT_URL, $pullRequestUrl."/comments?access_token=".$app['config.github']['access_token']);
-    // curl_setopt($ch, CURLOPT_HEADER, 0);
-    // curl_setopt($ch, CURLOPT_POST, 1);
-    // curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-    // 
-    // // Loop over the files in the report
-    // foreach ($report->file as $file) {
-    // 
-    //     // Make the filename relative
-    //     $fileName = str_replace($eventFolderPath."/files/", "", (string) $file['name']);
-    // 
-    //     foreach ($file->error as $error) {
-    // 
-    //         // Create a new comment
-    //         $comment = array(
-    //             "body" => "**".ucfirst((string) $error['severity']).":** ". (string) $error['message'],
-    //             "commit_id" => $changedFiles[$fileName]->sha,
-    //             "path" => $changedFiles[$fileName]->filename,
-    //             "position" => (string) $error['line']
-    //         );
-    // 
-    //         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($comment));
-    //         $output = curl_exec($ch);
-    //     }
-    // }
+    // Run PHP Code Sniffer
+    exec("phpcs --standard=Symfony2 --report=checkstyle --extensions=php {$eventFolderPath}/files", $output);
+    $report = implode($output);
+
+    // Save the output and create XML
+    file_put_contents($eventFolderPath."/checkstyle.xml", $report);
+    $report = new SimpleXMLElement($report);
+
+    // Loop over the files in the report
+    // var_dump($report);
+
+    $comments = array();
+
+    // Loop over the checkstyle files
+    foreach ($report->file as $fileReport) {
+        // Get the file name
+        $fileName = str_replace($eventFolderPath."/files/", "", (string) $fileReport['name']);
+        // Loop over the diff results
+        foreach($diffResult as $diffReport) {
+
+            // Binary File?
+            if(isset($diffReport['newFile']) == false) {
+                continue;
+            }
+
+            // If results[newFile]['fileName'] == checkstyle file
+            if($diffReport['newFile']['fileName'] == $fileName) {
+                // Loop over errors
+                foreach ($fileReport->error as $checkstyleReportError) {
+                    // Loop over chunks
+                    foreach ($diffReport['chunks'] as $diffReportChunk) {
+                        // Loop over addedLines
+                        foreach ($diffReportChunk['addedLines'] as $addedLine) {
+                            if($checkstyleReportError['line'] == $addedLine['fileLineIndex']) {
+                                $comments[] = array(
+                                    "body" => "**".ucfirst((string) $checkstyleReportError['severity']).":** ". (string) $checkstyleReportError['message'],
+                                    "commit_id" => $changedFiles[$fileName]->sha,
+                                    "path" => $changedFiles[$fileName]->filename,
+                                    "position" => $addedLine['diffLineIndex']
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // Setup Curl
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $pullRequestUrl."/comments?access_token=".$app['config.github']['access_token']);
+    curl_setopt($ch, CURLOPT_HEADER, 0);
+    curl_setopt($ch, CURLOPT_POST, 1);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    
+    foreach ($comments as $comment) {
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($comment));
+        $output = curl_exec($ch);
+    }
 
     curl_close($ch);
-
+ 
+    // var_dump($comments);
+    // var_dump($diffResult);
+    // exit;
+ 
     return $app['twig']->render('events/process.html.twig', array(
         'payload' => $event,
-        'report' => $report
+        'report' => $report,
+        'comments' => $comments
     ));
 
 })
