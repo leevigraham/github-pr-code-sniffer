@@ -415,11 +415,11 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
     $output = curl_exec($ch);
     
     curl_close($ch);
- 
+
     // var_dump($comments);
     // var_dump($diffResult);
     // exit;
- 
+
     return $app['twig']->render('events/process.html.twig', array(
         'payload' => $event,
         'report' => $report,
