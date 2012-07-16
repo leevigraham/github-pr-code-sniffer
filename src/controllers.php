@@ -193,7 +193,7 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
 
     file_put_contents($eventFolderPath."/payload.json", $event);
     file_put_contents($eventFolderPath."/diff.txt", $diffFile);
-    
+
     $patterns = array(
         'diff' => "/^diff/",
         'originalFile' => "/^--- a?\/(.*)/",
@@ -209,7 +209,7 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
     foreach (explode("\n", $diffFile) as $lineNum => $line) {
         $lineNum = $lineNum+1;
         foreach ($patterns as $patternKey => $pattern) {
-            if(preg_match($pattern, $line, $matches)){
+            if (preg_match($pattern, $line, $matches)){
                 switch ($patternKey) {
                     case 'diff':
                         unset($position);
@@ -236,7 +236,7 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
                         );
                         break;
                     case 'chunk':
-                        if(false == isset($position)) {
+                        if (false == isset($position)) {
                             $position = 0;
                         }
                         $currentChunk = $lineNum;
@@ -286,7 +286,7 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
             }
         }
     }
-    
+
     file_put_contents($eventFolderPath."/parsedDiff.json", json_encode($diffResult));
 
     $pullRequestUrl =   $app['config.github']['api_url']
@@ -313,7 +313,7 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
         }
 
         $fileContents = file_get_contents($file->raw_url);
-        
+
         try {
             $fs->mkdir(dirname($eventFolderPath . "/files/" . $file->filename));
             file_put_contents($eventFolderPath . "/files/" . $file->filename, $fileContents);
@@ -346,25 +346,25 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
         $fileName = str_replace($eventFolderPath."/files/", "", (string) $fileReport['name']);
         $errors['files'][$fileName] = array('error' => 0, 'warning' => 0);
         // Loop over the diff results
-        foreach($diffResult as $diffReport) {
+        foreach ($diffResult as $diffReport) {
 
             // Binary File?
-            if(isset($diffReport['newFile']) == false) {
+            if (isset($diffReport['newFile']) == false) {
                 continue;
             }
 
             // If results[newFile]['fileName'] == checkstyle file
-            if($diffReport['newFile']['fileName'] == $fileName) {
+            if ($diffReport['newFile']['fileName'] == $fileName) {
                 // Loop over errors
                 foreach ($fileReport->error as $checkstyleReportError) {
                     // Loop over chunks
                     foreach ($diffReport['chunks'] as $diffReportChunk) {
                         // Loop over addedLines
                         foreach ($diffReportChunk['addedLines'] as $addedLine) {
-                            if($checkstyleReportError['line'] == $addedLine['fileLineIndex']) {
+                            if ($checkstyleReportError['line'] == $addedLine['fileLineIndex']) {
                                 $severity = (string) $checkstyleReportError['severity'];
                                 $comments[] = array(
-                                    "body" => "**".ucfirst($severity ).":** ". (string) $checkstyleReportError['message'],
+                                    "body" => "**".ucfirst($severity).":** ". (string) $checkstyleReportError['message'],
                                     "commit_id" => $changedFiles[$fileName]->sha,
                                     "path" => $changedFiles[$fileName]->filename,
                                     "position" => $addedLine['position']
