@@ -163,12 +163,15 @@ $app->get('/events', function (Silex\Application $app, Request $request) {
 /**
  * Events - Process
  */
-$app->post('/events/process', function (Silex\Application $app, Request $request) {
+$app->match('/events/process', function (Silex\Application $app, Request $request) {
 
     if (! $eventRaw = $request->request->get('payload')) {
         echo("No playload!");
         exit;
     }
+
+    $app['monolog']->addDebug("New Event: ".time()."\n\n".$eventRaw);
+
     $event = json_decode($eventRaw, true);
 
     // $eventRaw = false;
@@ -423,6 +426,7 @@ $app->post('/events/process', function (Silex\Application $app, Request $request
     ));
 
 })
+->method('GET|POST')
 ->bind('events_process');
 
 /**
